@@ -226,6 +226,7 @@ def write_metarig(obj, layers=False, func_name="create", groups=False, widgets=F
 
     code.append("import bpy\n")
     code.append("from mathutils import Color\n")
+    code.append("from rna_prop_ui import rna_idprop_ui_create")
 
     # Widget object creation functions if requested
     if widgets:
@@ -314,6 +315,35 @@ def write_metarig(obj, layers=False, func_name="create", groups=False, widgets=F
         code.append("    pbone.lock_rotation_w = %s" % str(pbone.lock_rotation_w))
         code.append("    pbone.lock_scale = %s" % str(tuple(pbone.lock_scale)))
         code.append("    pbone.rotation_mode = %r" % pbone.rotation_mode)
+
+        custom_properties = [
+            custom_property for custom_property in pbone.keys()
+            if custom_property not in pbone.bl_rna.properties.keys()
+        ]
+
+        if custom_properties:
+            code.append('    # custom properties')
+
+        for custom_property in custom_properties:
+            props_data = pbone.id_properties_ui(custom_property).as_dict()
+            code.append(f"    rna_idprop_ui_create(")
+            code.append(f"        pbone, ")
+            code.append(f"        '{custom_property}', ")
+            code.append(f"        default={props_data['default']}, ")
+            if 'min' in props_data:
+                code.append(f"        min={props_data['min']}, ")
+            if 'max' in props_data:
+                code.append(f"        max={props_data['max']}, ")
+            if 'soft_min' in props_data:
+                code.append(f"        soft_min={props_data['soft_min']}, ")
+            if 'soft_max' in props_data:
+                code.append(f"        soft_max={props_data['soft_max']}, ")
+            if 'description' in props_data:
+                code.append(f"        description='{props_data['description']}'")
+            code.append(f"    )")
+            if 'precision' in props_data:
+                code.append(f"    pbone.id_properties_ui('{custom_property}').update(precision={props_data['precision']})")
+
         if layers:
             code.append("    pbone.bone.layers = %s" % str(list(pbone.bone.layers)))
         # Rig type parameters
